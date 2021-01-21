@@ -1,20 +1,23 @@
 package com.paymentApp.payment.service.impl;
 
 import java.util.List;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import java.util.Optional;
 
 import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import com.paymentApp.payment.domain.TransactionDetail;
 import com.paymentApp.payment.domain.TransactionType;
 import com.paymentApp.payment.domain.UserInformation;
+import com.paymentApp.payment.dto.PushNotificationRequest;
 import com.paymentApp.payment.respository.TransactionDetailRepository;
 import com.paymentApp.payment.respository.UserInformationRepository;
 import com.paymentApp.payment.service.TransactionDetailService;
+import com.paymentApp.payment.util.CommonUtil;
+import com.paymentApp.payment.util.FCMService;
+import com.paymentApp.payment.util.PaymentConstants;
 
 @Service
 public class TransactionDetailServiceImpl implements TransactionDetailService {
@@ -26,6 +29,12 @@ public class TransactionDetailServiceImpl implements TransactionDetailService {
 
 	@Autowired
 	UserInformationRepository userInfomationRepository;
+
+	@Autowired
+	FCMService fcmService;
+
+	@Autowired
+	CommonUtil commonUtil;
 
 	@Override
 	public TransactionDetail list(String userId) {
@@ -60,6 +69,11 @@ public class TransactionDetailServiceImpl implements TransactionDetailService {
 			}
 		}
 
+		try {
+			commonUtil.prepareCallForNotification(transactionDetail);
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
 		return transactionDetailRepository.save(transactionDetail);
 
 	}
@@ -73,14 +87,14 @@ public class TransactionDetailServiceImpl implements TransactionDetailService {
 
 			return transactionDetailRepository.findByDeliveryUserIdOrderByTransactionIdDesc(userId);
 		} else if (user.getUserRole().getId() == 2) {
+
 			return transactionDetailRepository.findByAppOwnerUserIdOrderByTransactionIdDesc(userId);
 		} else if (user.getUserRole().getId() == 4) {
+
 			return transactionDetailRepository.findByMerchantUserIdOrPayerUserIdOrderByTransactionIdDesc(userId,
 					userId);
 		}
-
 		return transactionDetailRepository.getByUserIdOrPayerUserIdOrderByTransactionIdDesc(userId, userId);
-
 	}
 
 	@Override
@@ -136,6 +150,11 @@ public class TransactionDetailServiceImpl implements TransactionDetailService {
 				transactionDetail.setReceivedAmount(
 						transactionDetail.getDiscountedAmount() - transactionDetail.getDiscountedAmount() * 0.0018);
 
+				try {
+					commonUtil.prepareCallForNotification(transactionDetail);
+				} catch (Exception e) {
+					e.printStackTrace();
+				}
 				userInfomationRepository.save(userInformationDetail);
 
 			} else if (transactionDetail.getServiceType().getId() == 3) {

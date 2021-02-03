@@ -11,12 +11,9 @@ import org.springframework.stereotype.Service;
 import com.paymentApp.payment.domain.TransactionDetail;
 import com.paymentApp.payment.domain.TransactionType;
 import com.paymentApp.payment.domain.UserInformation;
-import com.paymentApp.payment.dto.PushNotificationRequest;
 import com.paymentApp.payment.respository.TransactionDetailRepository;
 import com.paymentApp.payment.respository.UserInformationRepository;
 import com.paymentApp.payment.service.TransactionDetailService;
-import com.paymentApp.payment.util.CommonUtil;
-import com.paymentApp.payment.util.FCMService;
 import com.paymentApp.payment.util.PaymentConstants;
 
 @Service
@@ -30,11 +27,11 @@ public class TransactionDetailServiceImpl implements TransactionDetailService {
 	@Autowired
 	UserInformationRepository userInfomationRepository;
 
-	@Autowired
-	FCMService fcmService;
-
-	@Autowired
-	CommonUtil commonUtil;
+//	@Autowired
+//	FCMService fcmService;
+//
+//	@Autowired
+//	CommonUtil commonUtils;
 
 	@Override
 	public TransactionDetail list(String userId) {
@@ -51,6 +48,8 @@ public class TransactionDetailServiceImpl implements TransactionDetailService {
 	@Override
 	public TransactionDetail addTransactionDetail(TransactionDetail transactionDetail) {
 
+//		UserInformation userInformationDetail = userInfomationRepository.findByUserId(transactionDetail.getUserId());
+
 		transactionDetail.setStatus("Pending");
 		transactionDetail
 				.setDiscountedAmount(transactionDetail.getAmount() * ((100 - transactionDetail.getDiscount()) / 100));
@@ -58,22 +57,61 @@ public class TransactionDetailServiceImpl implements TransactionDetailService {
 		if (transactionDetail.getDiscountedAmount() == 0.0) {
 			transactionDetail.setDiscountedAmount(transactionDetail.getAmount());
 		}
-		if (transactionDetail.getServiceType() != null && transactionDetail.getServiceType().getId() == 1) {
-			TransactionDetail transDetail = transactionDetailRepository
-					.findTopByPayerUserIdAndUserIdOrderByTransactionIdDesc(transactionDetail.getPayerUserId(),
-							transactionDetail.getUserId());
+		if (transactionDetail.getServiceType() != null) {
 
-			if (transDetail != null && transDetail.getStatus() != null
-					&& transDetail.getStatus().equalsIgnoreCase("Pending")) {
-				return null;
+			if (transactionDetail.getServiceType().getId() == 1) {
+				TransactionDetail transDetail = transactionDetailRepository
+						.findTopByPayerUserIdAndUserIdOrderByTransactionIdDesc(transactionDetail.getPayerUserId(),
+								transactionDetail.getUserId());
+
+				if (transDetail != null && transDetail.getStatus() != null
+						&& transDetail.getStatus().equalsIgnoreCase("Pending")) {
+					return null;
+				}
+			}
+
+			// send notification
+			try {
+//				commonUtils.prepareCallForTransaction(transactionDetail, transactionDetail.getServiceType().getId());
+			} catch (Exception e) {
+				logger.error("ADD TRANSACTION - ERROR WHILE SENDING NOTIFICATION");
+				e.printStackTrace();
 			}
 		}
 
-		try {
-			commonUtil.prepareCallForNotification(transactionDetail);
-		} catch (Exception e) {
-			e.printStackTrace();
-		}
+//		if (transactionDetail.getServiceType() != null && transactionDetail.getServiceType().getId() == 1) {
+//			TransactionDetail transDetail = transactionDetailRepository
+//					.findTopByPayerUserIdAndUserIdOrderByTransactionIdDesc(transactionDetail.getPayerUserId(),
+//							transactionDetail.getUserId());
+//
+//			if (transDetail != null && transDetail.getStatus() != null
+//					&& transDetail.getStatus().equalsIgnoreCase("Pending")) {
+//				return null;
+//			}
+//		}
+
+//		if (transactionDetail.getServiceType() != null && transactionDetail.getServiceType().getId() == 2) {
+//
+//			if (transactionDetail.getPayerUserId() == null) {
+//
+//				commonUtils.sendRequestForNotification(PaymentConstants.INVOICE_CREATED_BROADCASTED_TTL,
+//						PaymentConstants.INVOICE_CREATED_WITHOUT_PAYER_MSG, userInformationDetail.getFireBaseToken());
+//
+//			} else {
+//				commonUtils.sendRequestForNotification(PaymentConstants.INVOICE_CREATED_BROADCASTED_TTL,
+//						PaymentConstants.INVOICE_CREATED_WITH_PAYER_MSG, userInformationDetail.getFireBaseToken());
+//			}
+//
+//		} else {
+//			commonUtils.sendRequestForNotification(PaymentConstants.INVOICE_CREATED_BROADCASTED_TTL,
+//					PaymentConstants.INVOICE_CREATED_WITHOUT_PAYER_MSG, userInformationDetail.getFireBaseToken());
+//		}
+
+//		try {
+//			commonUtils.prepareCallForNotification(transactionDetail);
+//		} catch (Exception e) {
+//			e.printStackTrace();
+//		}
 		return transactionDetailRepository.save(transactionDetail);
 
 	}
@@ -111,7 +149,7 @@ public class TransactionDetailServiceImpl implements TransactionDetailService {
 		transactionDetail.setTransactionType(transType);
 
 		if (transactionDetail.getAppOwnerUserId() == null) {
-			transactionDetail.setAppOwnerUserId("AOR01-01");
+			transactionDetail.setAppOwnerUserId(PaymentConstants.APP_OWNER_ID);
 		}
 
 		if (!transactionDetail.getStatus().equalsIgnoreCase("Pending")) {
@@ -151,7 +189,8 @@ public class TransactionDetailServiceImpl implements TransactionDetailService {
 						transactionDetail.getDiscountedAmount() - transactionDetail.getDiscountedAmount() * 0.0018);
 
 				try {
-					commonUtil.prepareCallForNotification(transactionDetail);
+//					commonUtils.prepareCallForNotificationForUpdateStatus(transactionDetail,
+//							transactionDetail.getServiceType().getId());
 				} catch (Exception e) {
 					e.printStackTrace();
 				}
@@ -178,6 +217,12 @@ public class TransactionDetailServiceImpl implements TransactionDetailService {
 				userInformationDetail.setAccountBalance(amountReciever);
 				transactionDetail.setReceivedAmount(transactionDetail.getDiscountedAmount()
 						- transactionDetail.getDiscountedAmount() * 0.0018 - 1.5);
+				try {
+//					commonUtils.prepareCallForNotificationForUpdateStatus(transactionDetail,
+//							transactionDetail.getServiceType().getId());
+				} catch (Exception e) {
+					e.printStackTrace();
+				}
 				userInfomationRepository.save(userInformationDetail);
 
 			} else if (transactionDetail.getServiceType().getId() == 4) {
@@ -194,6 +239,13 @@ public class TransactionDetailServiceImpl implements TransactionDetailService {
 				userInformationDetail.setAccountBalance(amountReciever);
 				transactionDetail.setReceivedAmount(
 						transactionDetail.getDiscountedAmount() - transactionDetail.getDiscountedAmount() * 0.0018);
+
+				try {
+//					commonUtils.prepareCallForNotificationForUpdateStatus(transactionDetail,
+//							transactionDetail.getServiceType().getId());
+				} catch (Exception e) {
+					e.printStackTrace();
+				}
 				userInfomationRepository.save(userInformationDetail);
 
 			} else if (transactionDetail.getServiceType().getId() == 5) {
@@ -221,6 +273,12 @@ public class TransactionDetailServiceImpl implements TransactionDetailService {
 						transactionDetail.getDiscountedAmount() - transactionDetail.getDiscountedAmount() * 0.0018
 								- transactionDetail.getDiscountedAmount() * 0.1);
 
+				try {
+//					commonUtils.prepareCallForNotificationForUpdateStatus(transactionDetail,
+//							transactionDetail.getServiceType().getId());
+				} catch (Exception e) {
+					e.printStackTrace();
+				}
 				userInfomationRepository.save(userInformationDetail);
 
 			} else {
@@ -233,11 +291,23 @@ public class TransactionDetailServiceImpl implements TransactionDetailService {
 				double amountPayer = userInformationPayer.getAccountBalance() - transactionDetail.getDiscountedAmount();
 				userInformationPayer.setAccountBalance(amountPayer);
 
+				try {
+//					commonUtils.prepareCallForNotificationForUpdateStatus(transactionDetail,
+//							transactionDetail.getServiceType().getId());
+				} catch (Exception e) {
+					e.printStackTrace();
+				}
 				userInfomationRepository.save(userInformationPayer);
 			}
 
 			transactionDetail.setStatus("Confirmed");
 		} else {
+			try {
+//				commonUtils.prepareCallForNotificationForUpdateStatus(transactionDetail,
+//						transactionDetail.getServiceType().getId());
+			} catch (Exception e) {
+				e.printStackTrace();
+			}
 			transactionDetail.setStatus("Rejected");
 		}
 
@@ -268,7 +338,7 @@ public class TransactionDetailServiceImpl implements TransactionDetailService {
 	@Override
 	public TransactionDetail getByTransactionId(long id) {
 
-		long currentmillis = System.currentTimeMillis() - 600000;
+//		long currentmillis = System.currentTimeMillis() - 600000;
 		Optional<TransactionDetail> tranDetail = transactionDetailRepository.findById(id);
 
 //		if (tranDetail != null && tranDetail.get().getTransactionDateTime() > currentmillis) {
@@ -313,11 +383,19 @@ public class TransactionDetailServiceImpl implements TransactionDetailService {
 				.findTopByPayerUserIdAndUserIdOrderByTransactionIdDesc(detail.getPayerUserId(), detail.getUserId());
 
 		if (transactionDetail != null && transactionDetail.getStatus().equalsIgnoreCase("Pending")) {
-			transactionDetail.setPayTimestamp(detail.getPayTimestamp());
+			UserInformation userInformationDetail = userInfomationRepository
+					.findByUserId(transactionDetail.getUserId());
 
+			transactionDetail.setPayTimestamp(detail.getPayTimestamp());
 			transactionDetail.setAmount(
 					((int) ((detail.getPayTimestamp() - transactionDetail.getCreateTimestamp()) / 1000)) * 0.0014);
 			transactionDetail.setDiscountedAmount(transactionDetail.getAmount());
+
+			// send notification to payer user
+			if (userInformationDetail != null) {
+//				commonUtils.sendRequestForNotification(PaymentConstants.PARKING_TIME_START_TTL,
+//						PaymentConstants.PARKING_TIME_START_MSG, userInformationDetail.getFireBaseToken());
+			}
 
 			return transactionDetailRepository.save(transactionDetail);
 		}

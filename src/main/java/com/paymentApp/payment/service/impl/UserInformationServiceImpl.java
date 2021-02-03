@@ -7,16 +7,18 @@ import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 
-import javax.persistence.EntityManager;
-
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import com.paymentApp.payment.domain.TransactionDetail;
 import com.paymentApp.payment.domain.UserInformation;
+import com.paymentApp.payment.dto.PushNotificationRequest;
 import com.paymentApp.payment.respository.TransactionDetailRepository;
 import com.paymentApp.payment.respository.UserInformationRepository;
 import com.paymentApp.payment.service.UserInformationService;
+import com.paymentApp.payment.util.PaymentConstants;
 
 @Service
 public class UserInformationServiceImpl implements UserInformationService {
@@ -26,6 +28,14 @@ public class UserInformationServiceImpl implements UserInformationService {
 
 	@Autowired
 	TransactionDetailRepository detailRepository;
+
+//	@Autowired
+//	FCMService fcmService;
+//
+//	@Autowired
+//	CommonUtil commonUtil;
+
+	private final static Logger logger = LoggerFactory.getLogger(UserInformationServiceImpl.class);
 
 	@Override
 	public UserInformation list(String userId) {
@@ -97,6 +107,7 @@ public class UserInformationServiceImpl implements UserInformationService {
 				user.setFlag(false);
 			}
 
+			prepareForNotification(user);
 			return user;
 		} else {
 
@@ -113,10 +124,29 @@ public class UserInformationServiceImpl implements UserInformationService {
 				} else {
 					user.setFlag(false);
 				}
-
+				prepareForNotification(user);
 				return user;
 			}
 			return null;
+		}
+
+	}
+
+	private void prepareForNotification(UserInformation user) {
+
+		logger.info("IN PREPARE FOR NOTIFICATION");
+
+		if (user != null && user.getFireBaseToken() != null) {
+
+			PushNotificationRequest request = new PushNotificationRequest();
+			request.setMessage(PaymentConstants.INVOICE_GEN_SUCCESS_TTL);
+			request.setTitle(PaymentConstants.INVOICE_PAID_SUCCESS_USER_MSG);
+			request.setToken(user.getFireBaseToken());
+
+//			ResponseEntity<String> response = fcmService.send(request);
+//			logger.info("RESPONSE :: " + response);
+		} else {
+			logger.error("ERROR :: FIREBASE TOKEN NOT FOUND :" + user);
 		}
 
 	}
@@ -340,7 +370,7 @@ public class UserInformationServiceImpl implements UserInformationService {
 			return userInformationRepository.save(user);
 		}
 		return null;
-		
+
 	}
 
 }
